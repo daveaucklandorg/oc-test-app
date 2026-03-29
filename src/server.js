@@ -1,14 +1,35 @@
 import http from 'node:http';
+import { fileURLToPath } from 'node:url';
 
-const PORT = process.env.PORT || 3456;
+import { router } from './router.js';
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('oc-test-app scaffold');
-});
+const PORT = Number(process.env.PORT || 3456);
 
-server.listen(PORT, () => {
-  console.log(`Listening on :${PORT}`);
-});
+function createApp() {
+  return http.createServer((req, res) => {
+    Promise.resolve(router(req, res)).catch((error) => {
+      console.error(error);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Internal Server Error' }));
+    });
+  });
+}
 
-export { server };
+const server = createApp();
+
+function startServer(port = PORT) {
+  return new Promise((resolve) => {
+    server.listen(port, () => {
+      console.log(`Listening on :${port}`);
+      resolve(server);
+    });
+  });
+}
+
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+
+if (isMainModule) {
+  startServer();
+}
+
+export { createApp, server, startServer };
