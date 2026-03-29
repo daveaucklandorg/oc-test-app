@@ -15,12 +15,14 @@ function createApp() {
   });
 }
 
-const server = createApp();
-
 function startServer(port = PORT) {
+  const server = createApp();
+
   return new Promise((resolve) => {
     server.listen(port, () => {
-      console.log(`Listening on :${port}`);
+      const address = server.address();
+      const resolvedPort = typeof address === 'object' && address ? address.port : port;
+      console.log(`Listening on :${resolvedPort}`);
       resolve(server);
     });
   });
@@ -32,4 +34,4 @@ if (isMainModule) {
   startServer();
 }
 
-export { createApp, server, startServer };
+export { createApp, startServer };
