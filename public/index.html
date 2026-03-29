@@ -3,21 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Contact Book</title>
+    <title>Pomodoro Timer</title>
     <style>
       :root {
-        color-scheme: light;
-        --bg: #f4f7fb;
-        --surface: #ffffff;
-        --surface-alt: #f8fafc;
-        --border: #d7deea;
-        --text: #1f2937;
-        --muted: #6b7280;
-        --primary: #2563eb;
-        --primary-dark: #1d4ed8;
-        --danger: #dc2626;
-        --danger-dark: #b91c1c;
-        --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+        color-scheme: dark;
+        --bg: #050816;
+        --bg-accent: radial-gradient(circle at top, rgba(244, 63, 94, 0.16), transparent 32%),
+          radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.16), transparent 28%),
+          linear-gradient(180deg, #0b1022 0%, #050816 100%);
+        --surface: rgba(15, 23, 42, 0.92);
+        --surface-soft: rgba(30, 41, 59, 0.72);
+        --border: rgba(148, 163, 184, 0.16);
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --work: #f43f5e;
+        --short: #22c55e;
+        --long: #3b82f6;
+        --track: rgba(148, 163, 184, 0.16);
+        --ring-shadow: 0 0 45px rgba(244, 63, 94, 0.2);
+        --shadow: 0 28px 60px rgba(2, 6, 23, 0.5);
       }
 
       * {
@@ -27,483 +31,629 @@
       body {
         margin: 0;
         min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+        background: var(--bg-accent);
         color: var(--text);
       }
 
-      .page {
-        width: min(960px, calc(100% - 2rem));
-        margin: 2rem auto;
+      .app {
+        width: min(100%, 980px);
+        background: rgba(15, 23, 42, 0.86);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        border-radius: 28px;
+        overflow: hidden;
+        backdrop-filter: blur(18px);
       }
 
-      .shell {
-        background: var(--surface);
-        border: 1px solid rgba(215, 222, 234, 0.85);
-        border-radius: 20px;
-        box-shadow: var(--shadow);
-        overflow: hidden;
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.9fr);
+      }
+
+      .hero,
+      .sidebar {
+        padding: 2rem;
       }
 
       .hero {
-        padding: 2rem;
-        border-bottom: 1px solid var(--border);
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0.96));
+        border-right: 1px solid var(--border);
       }
 
-      .hero h1 {
-        margin: 0 0 0.5rem;
-        font-size: clamp(1.8rem, 3vw, 2.4rem);
-      }
-
-      .hero p {
-        margin: 0;
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
         color: var(--muted);
-        max-width: 42rem;
+        background: rgba(148, 163, 184, 0.08);
+        border: 1px solid rgba(148, 163, 184, 0.14);
       }
 
-      .content {
+      h1 {
+        margin: 1rem 0 0.75rem;
+        font-size: clamp(2.2rem, 6vw, 4rem);
+        line-height: 1;
+      }
+
+      .lead {
+        margin: 0 0 2rem;
+        max-width: 34rem;
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+
+      .timer-shell {
         display: grid;
+        justify-items: center;
         gap: 1.5rem;
-        padding: 1.5rem;
       }
 
-      .panel {
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: var(--surface-alt);
-        padding: 1.25rem;
-      }
-
-      .panel h2 {
-        margin: 0 0 1rem;
-        font-size: 1.1rem;
-      }
-
-      form {
+      .ring-wrap {
+        position: relative;
+        width: min(72vw, 360px);
+        aspect-ratio: 1;
         display: grid;
-        gap: 0.9rem;
+        place-items: center;
       }
 
-      .form-grid {
-        display: grid;
-        gap: 0.9rem;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+      .ring {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+        filter: drop-shadow(var(--ring-shadow));
       }
 
-      label {
+      .ring circle {
+        fill: none;
+        stroke-width: 12;
+        stroke-linecap: round;
+      }
+
+      .ring .track {
+        stroke: var(--track);
+      }
+
+      .ring .progress {
+        stroke: var(--accent, var(--work));
+        stroke-dasharray: var(--circumference);
+        stroke-dashoffset: var(--dashoffset, 0);
+        transition: stroke 220ms ease, stroke-dashoffset 180ms linear;
+      }
+
+      .time-display {
+        position: absolute;
+        inset: 0;
         display: grid;
-        gap: 0.35rem;
-        font-size: 0.92rem;
+        place-items: center;
+        text-align: center;
+        padding: 2rem;
+      }
+
+      .label {
+        margin: 0 0 0.5rem;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
         color: var(--muted);
       }
 
-      input {
-        width: 100%;
-        padding: 0.8rem 0.9rem;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        background: #fff;
-        font: inherit;
-        color: var(--text);
+      .time {
+        margin: 0;
+        font-size: clamp(3rem, 14vw, 5.5rem);
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.04em;
       }
 
-      input:focus {
-        outline: 2px solid rgba(37, 99, 235, 0.2);
-        border-color: var(--primary);
+      .cycle {
+        margin-top: 0.75rem;
+        color: var(--muted);
+        font-size: 0.95rem;
       }
 
-      .actions,
-      .row-actions {
+      .controls {
         display: flex;
-        gap: 0.65rem;
+        gap: 0.75rem;
         flex-wrap: wrap;
+        justify-content: center;
       }
 
       button {
+        appearance: none;
         border: 0;
-        border-radius: 10px;
-        padding: 0.78rem 1rem;
+        border-radius: 999px;
+        padding: 0.9rem 1.35rem;
         font: inherit;
-        font-weight: 600;
+        font-weight: 700;
+        color: var(--text);
         cursor: pointer;
-        transition: transform 120ms ease, background 120ms ease, opacity 120ms ease;
+        transition: transform 140ms ease, opacity 140ms ease, background 140ms ease, box-shadow 140ms ease;
       }
 
       button:hover {
         transform: translateY(-1px);
       }
 
-      button:disabled {
-        opacity: 0.65;
-        cursor: wait;
-        transform: none;
+      button:active {
+        transform: translateY(0);
       }
 
       .primary {
-        background: var(--primary);
-        color: white;
-      }
-
-      .primary:hover {
-        background: var(--primary-dark);
+        background: linear-gradient(135deg, var(--accent, var(--work)), rgba(255, 255, 255, 0.12));
+        box-shadow: 0 14px 35px rgba(15, 23, 42, 0.35);
       }
 
       .secondary {
-        background: #e5e7eb;
-        color: var(--text);
+        background: rgba(148, 163, 184, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.18);
       }
 
-      .danger {
-        background: #fee2e2;
-        color: var(--danger);
+      .stats {
+        display: grid;
+        gap: 1rem;
       }
 
-      .danger:hover {
-        background: #fecaca;
-        color: var(--danger-dark);
+      .card {
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        padding: 1.25rem;
+      }
+
+      .card h2,
+      .card h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1rem;
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .counter {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+
+      .counter strong {
+        font-size: 3rem;
+        line-height: 1;
+      }
+
+      .session-pills {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+
+      .pill {
+        padding: 0.8rem 0.6rem;
+        border-radius: 14px;
+        text-align: center;
+        background: rgba(148, 163, 184, 0.08);
+        border: 1px solid transparent;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .pill.done {
+        color: white;
+        background: rgba(244, 63, 94, 0.18);
+        border-color: rgba(244, 63, 94, 0.4);
+      }
+
+      .modes {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+
+      .mode {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.9rem 1rem;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.45);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+      }
+
+      .mode.active {
+        border-color: color-mix(in srgb, var(--accent, var(--work)) 50%, transparent);
+        background: color-mix(in srgb, var(--accent, var(--work)) 12%, rgba(15, 23, 42, 0.45));
+      }
+
+      .mode small {
+        color: var(--muted);
+      }
+
+      .legend-dot {
+        width: 0.8rem;
+        height: 0.8rem;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.55rem;
+        vertical-align: middle;
       }
 
       .status {
-        min-height: 1.25rem;
-        margin: 0;
+        margin-top: 1rem;
+        min-height: 1.5rem;
+        color: var(--muted);
         font-size: 0.92rem;
-        color: var(--muted);
       }
 
-      .status.error {
-        color: var(--danger);
+      .status strong {
+        color: var(--text);
       }
 
-      .status.success {
-        color: #15803d;
-      }
-
-      .table-wrap {
-        overflow-x: auto;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-
-      th,
-      td {
-        text-align: left;
-        padding: 0.95rem 0.75rem;
-        border-bottom: 1px solid var(--border);
-        vertical-align: top;
-      }
-
-      th {
-        font-size: 0.86rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--muted);
-      }
-
-      tbody tr:last-child td {
-        border-bottom: 0;
-      }
-
-      .empty {
-        text-align: center;
-        color: var(--muted);
-        padding: 1.5rem 0.5rem;
-      }
-
-      .muted {
-        color: var(--muted);
-      }
-
-      @media (max-width: 760px) {
-        .page {
-          width: min(100%, calc(100% - 1rem));
-          margin: 0.5rem auto;
-        }
-
-        .hero,
-        .content {
-          padding: 1rem;
-        }
-
-        .form-grid {
+      @media (max-width: 860px) {
+        .layout {
           grid-template-columns: 1fr;
         }
 
-        th,
-        td {
-          min-width: 150px;
+        .hero {
+          border-right: 0;
+          border-bottom: 1px solid var(--border);
+        }
+      }
+
+      @media (max-width: 520px) {
+        body {
+          padding: 0.5rem;
+        }
+
+        .hero,
+        .sidebar {
+          padding: 1.25rem;
+        }
+
+        .session-pills {
+          gap: 0.5rem;
+        }
+
+        .pill {
+          padding: 0.7rem 0.4rem;
+          font-size: 0.82rem;
+        }
+
+        .controls {
+          width: 100%;
+        }
+
+        .controls button {
+          flex: 1 1 calc(50% - 0.5rem);
+          justify-content: center;
         }
       }
     </style>
   </head>
   <body>
-    <main class="page">
-      <section class="shell">
-        <header class="hero">
-          <h1>Contact Book</h1>
-          <p>
-            Manage contacts in a simple, fast, no-framework address book. Add new people,
-            update existing details, and remove entries you no longer need.
+    <main class="app">
+      <section class="layout">
+        <div class="hero">
+          <span class="eyebrow">Focus Flow</span>
+          <h1>Pomodoro Timer</h1>
+          <p class="lead">
+            A calm, distraction-light focus timer with automatic work and break transitions,
+            smooth progress, and browser notifications when it’s time to switch.
           </p>
-        </header>
 
-        <div class="content">
-          <section class="panel">
-            <h2 id="form-title">Add Contact</h2>
-            <form id="contact-form">
-              <input type="hidden" id="contact-id" />
-              <div class="form-grid">
-                <label>
-                  Name
-                  <input id="name" name="name" type="text" maxlength="120" required placeholder="Ada Lovelace" />
-                </label>
-                <label>
-                  Email
-                  <input id="email" name="email" type="email" maxlength="160" placeholder="ada@example.com" />
-                </label>
-                <label>
-                  Phone
-                  <input id="phone" name="phone" type="text" maxlength="50" placeholder="123-456-7890" />
-                </label>
+          <section class="timer-shell" aria-label="Pomodoro countdown timer">
+            <div class="ring-wrap">
+              <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="track" cx="60" cy="60" r="52"></circle>
+                <circle class="progress" cx="60" cy="60" r="52"></circle>
+              </svg>
+              <div class="time-display">
+                <div>
+                  <p class="label" id="session-label">Work session</p>
+                  <p class="time" id="time-remaining">25:00</p>
+                  <div class="cycle" id="cycle-summary">Pomodoro 1 of 4</div>
+                </div>
               </div>
-              <div class="actions">
-                <button class="primary" id="submit-button" type="submit">Add Contact</button>
-                <button class="secondary" id="cancel-button" type="button" hidden>Cancel Edit</button>
-              </div>
-              <p id="status" class="status" aria-live="polite"></p>
-            </form>
-          </section>
-
-          <section class="panel">
-            <div class="actions" style="justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-              <h2 style="margin: 0;">Contacts</h2>
-              <button class="secondary" id="refresh-button" type="button">Refresh</button>
             </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="contact-table-body">
-                  <tr>
-                    <td class="empty" colspan="4">Loading contacts…</td>
-                  </tr>
-                </tbody>
-              </table>
+
+            <div class="controls">
+              <button id="toggle-button" class="primary" type="button">Start</button>
+              <button id="reset-button" class="secondary" type="button">Reset</button>
             </div>
           </section>
         </div>
+
+        <aside class="sidebar">
+          <div class="stats">
+            <section class="card">
+              <h2>Completed pomodoros</h2>
+              <p>Each finished work block increments the counter and drives the long-break cadence.</p>
+              <div class="counter">
+                <strong id="completed-count">0</strong>
+                <span>sessions done</span>
+              </div>
+              <div class="session-pills" id="session-pills" aria-label="Current pomodoro cycle progress">
+                <div class="pill">1</div>
+                <div class="pill">2</div>
+                <div class="pill">3</div>
+                <div class="pill">4</div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h3>Cycle</h3>
+              <div class="modes">
+                <div class="mode active" data-mode="work">
+                  <span><span class="legend-dot" style="background: var(--work);"></span>Work</span>
+                  <small>25 min</small>
+                </div>
+                <div class="mode" data-mode="shortBreak">
+                  <span><span class="legend-dot" style="background: var(--short);"></span>Short break</span>
+                  <small>5 min</small>
+                </div>
+                <div class="mode" data-mode="longBreak">
+                  <span><span class="legend-dot" style="background: var(--long);"></span>Long break</span>
+                  <small>15 min</small>
+                </div>
+              </div>
+              <p class="status" id="status-message">Ready when you are.</p>
+            </section>
+          </div>
+        </aside>
       </section>
     </main>
 
     <script>
-      const form = document.getElementById('contact-form');
-      const formTitle = document.getElementById('form-title');
-      const contactIdInput = document.getElementById('contact-id');
-      const nameInput = document.getElementById('name');
-      const emailInput = document.getElementById('email');
-      const phoneInput = document.getElementById('phone');
-      const submitButton = document.getElementById('submit-button');
-      const cancelButton = document.getElementById('cancel-button');
-      const refreshButton = document.getElementById('refresh-button');
-      const statusNode = document.getElementById('status');
-      const tableBody = document.getElementById('contact-table-body');
+      const DURATIONS = {
+        work: 25 * 60,
+        shortBreak: 5 * 60,
+        longBreak: 15 * 60,
+      };
 
-      let contacts = [];
-      let busy = false;
+      const SESSION_META = {
+        work: {
+          label: 'Work session',
+          accent: '#f43f5e',
+          completeMessage: 'Work session complete. Time for a break.',
+        },
+        shortBreak: {
+          label: 'Short break',
+          accent: '#22c55e',
+          completeMessage: 'Break over. Back to work.',
+        },
+        longBreak: {
+          label: 'Long break',
+          accent: '#3b82f6',
+          completeMessage: 'Long break finished. Ready for a fresh cycle.',
+        },
+      };
 
-      function escapeHtml(value) {
-        return String(value ?? '')
-          .replaceAll('&', '&amp;')
-          .replaceAll('<', '&lt;')
-          .replaceAll('>', '&gt;')
-          .replaceAll('"', '&quot;')
-          .replaceAll("'", '&#39;');
+      const TITLE_BASE = 'Pomodoro Timer';
+      const progressCircle = document.querySelector('.progress');
+      const ringWrap = document.querySelector('.ring-wrap');
+      const timeRemainingNode = document.getElementById('time-remaining');
+      const sessionLabelNode = document.getElementById('session-label');
+      const cycleSummaryNode = document.getElementById('cycle-summary');
+      const completedCountNode = document.getElementById('completed-count');
+      const statusMessageNode = document.getElementById('status-message');
+      const toggleButton = document.getElementById('toggle-button');
+      const resetButton = document.getElementById('reset-button');
+      const sessionPills = [...document.querySelectorAll('.pill')];
+      const modeCards = [...document.querySelectorAll('.mode')];
+
+      const radius = 52;
+      const circumference = 2 * Math.PI * radius;
+      ringWrap.style.setProperty('--circumference', circumference.toFixed(3));
+      progressCircle.style.strokeDasharray = circumference.toFixed(3);
+
+      const state = {
+        currentMode: 'work',
+        completedPomodoros: 0,
+        isRunning: false,
+        startedAt: 0,
+        endTime: 0,
+        remainingSeconds: DURATIONS.work,
+        rafId: null,
+      };
+
+      function formatTime(totalSeconds) {
+        const clamped = Math.max(0, Math.ceil(totalSeconds));
+        const minutes = Math.floor(clamped / 60);
+        const seconds = clamped % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
       }
 
-      function setStatus(message, tone = '') {
-        statusNode.textContent = message;
-        statusNode.className = `status${tone ? ` ${tone}` : ''}`;
+      function getCyclePosition() {
+        return (state.completedPomodoros % 4) + 1;
       }
 
-      function setBusy(nextBusy) {
-        busy = nextBusy;
-        submitButton.disabled = nextBusy;
-        refreshButton.disabled = nextBusy;
-        cancelButton.disabled = nextBusy;
+      function getDefaultRemaining(mode) {
+        return DURATIONS[mode];
       }
 
-      function resetForm() {
-        form.reset();
-        contactIdInput.value = '';
-        formTitle.textContent = 'Add Contact';
-        submitButton.textContent = 'Add Contact';
-        cancelButton.hidden = true;
-        nameInput.focus();
+      function updateTitle() {
+        document.title = `${formatTime(state.remainingSeconds)} • ${SESSION_META[state.currentMode].label} • ${TITLE_BASE}`;
       }
 
-      function startEdit(contact) {
-        contactIdInput.value = String(contact.id);
-        nameInput.value = contact.name ?? '';
-        emailInput.value = contact.email ?? '';
-        phoneInput.value = contact.phone ?? '';
-        formTitle.textContent = `Edit Contact #${contact.id}`;
-        submitButton.textContent = 'Save Changes';
-        cancelButton.hidden = false;
-        setStatus(`Editing ${contact.name}.`, '');
-        nameInput.focus();
+      function updateStatus(message, highlight = false) {
+        statusMessageNode.innerHTML = highlight ? `<strong>${message}</strong>` : message;
       }
 
-      function renderContacts() {
-        if (contacts.length === 0) {
-          tableBody.innerHTML = '<tr><td class="empty" colspan="4">No contacts yet. Add your first contact above.</td></tr>';
+      function updateProgressRing() {
+        const total = getDefaultRemaining(state.currentMode);
+        const elapsed = total - state.remainingSeconds;
+        const progress = Math.min(Math.max(elapsed / total, 0), 1);
+        const offset = circumference * (1 - progress);
+        ringWrap.style.setProperty('--dashoffset', offset.toFixed(3));
+        ringWrap.style.setProperty('--accent', SESSION_META[state.currentMode].accent);
+      }
+
+      function updateSessionPills() {
+        const doneInCurrentCycle = state.completedPomodoros % 4;
+        sessionPills.forEach((pill, index) => {
+          pill.classList.toggle('done', index < doneInCurrentCycle);
+        });
+      }
+
+      function updateModeCards() {
+        modeCards.forEach((card) => {
+          card.classList.toggle('active', card.dataset.mode === state.currentMode);
+        });
+      }
+
+      function render() {
+        const meta = SESSION_META[state.currentMode];
+        sessionLabelNode.textContent = meta.label;
+        timeRemainingNode.textContent = formatTime(state.remainingSeconds);
+        cycleSummaryNode.textContent = `Pomodoro ${getCyclePosition()} of 4`;
+        completedCountNode.textContent = String(state.completedPomodoros);
+        toggleButton.textContent = state.isRunning ? 'Pause' : 'Start';
+        updateProgressRing();
+        updateSessionPills();
+        updateModeCards();
+        updateTitle();
+      }
+
+      function requestNotificationPermission() {
+        if (!('Notification' in window) || Notification.permission !== 'default') {
           return;
         }
 
-        tableBody.innerHTML = contacts
-          .map(
-            (contact) => `
-              <tr>
-                <td>${escapeHtml(contact.name)}</td>
-                <td>${contact.email ? escapeHtml(contact.email) : '<span class="muted">—</span>'}</td>
-                <td>${contact.phone ? escapeHtml(contact.phone) : '<span class="muted">—</span>'}</td>
-                <td>
-                  <div class="row-actions">
-                    <button class="secondary" type="button" data-action="edit" data-id="${contact.id}">Edit</button>
-                    <button class="danger" type="button" data-action="delete" data-id="${contact.id}">Delete</button>
-                  </div>
-                </td>
-              </tr>
-            `,
-          )
-          .join('');
+        Notification.requestPermission().catch(() => {
+          updateStatus('Notification permission request was dismissed.');
+        });
       }
 
-      async function requestJson(url, options = {}) {
-        const response = await fetch(url, options);
-        const isJson = response.headers.get('content-type')?.includes('application/json');
-        const data = isJson ? await response.json() : null;
-
-        if (!response.ok) {
-          throw new Error(data?.error || `Request failed with status ${response.status}`);
-        }
-
-        return data;
-      }
-
-      async function loadContacts() {
-        setBusy(true);
-        setStatus('Loading contacts...');
-
-        try {
-          contacts = await requestJson('/api/contacts');
-          renderContacts();
-          setStatus(`Loaded ${contacts.length} contact${contacts.length === 1 ? '' : 's'}.`, 'success');
-        } catch (error) {
-          tableBody.innerHTML = '<tr><td class="empty" colspan="4">Unable to load contacts.</td></tr>';
-          setStatus(error.message || 'Unable to load contacts.', 'error');
-        } finally {
-          setBusy(false);
-        }
-      }
-
-      async function saveContact(event) {
-        event.preventDefault();
-        setBusy(true);
-
-        const id = contactIdInput.value.trim();
-        const payload = {
-          name: nameInput.value.trim(),
-          email: emailInput.value.trim(),
-          phone: phoneInput.value.trim(),
-        };
-
-        const isEditing = Boolean(id);
-        const url = isEditing ? `/api/contacts/${id}` : '/api/contacts';
-        const method = isEditing ? 'PUT' : 'POST';
-
-        setStatus(isEditing ? 'Saving changes...' : 'Creating contact...');
-
-        try {
-          const saved = await requestJson(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-
-          resetForm();
-          await loadContacts();
-          setStatus(
-            isEditing ? `Updated ${saved.name}.` : `Added ${saved.name}.`,
-            'success',
-          );
-        } catch (error) {
-          setStatus(error.message || 'Unable to save contact.', 'error');
-          setBusy(false);
-        }
-      }
-
-      async function deleteContact(contact) {
-        const confirmed = window.confirm(`Delete ${contact.name}?`);
-        if (!confirmed) {
+      function notifyCompletion(message) {
+        if (!('Notification' in window)) {
           return;
         }
 
-        setBusy(true);
-        setStatus(`Deleting ${contact.name}...`);
-
-        try {
-          await requestJson(`/api/contacts/${contact.id}`, { method: 'DELETE' });
-          if (contactIdInput.value === String(contact.id)) {
-            resetForm();
-          }
-          await loadContacts();
-          setStatus(`Deleted ${contact.name}.`, 'success');
-        } catch (error) {
-          setStatus(error.message || 'Unable to delete contact.', 'error');
-          setBusy(false);
+        if (Notification.permission === 'granted') {
+          new Notification('Pomodoro Timer', { body: message });
         }
       }
 
-      form.addEventListener('submit', saveContact);
-      cancelButton.addEventListener('click', () => {
-        resetForm();
-        setStatus('Edit cancelled.');
+      function selectNextMode() {
+        if (state.currentMode === 'work') {
+          const isLongBreakTurn = state.completedPomodoros % 4 === 0;
+          return isLongBreakTurn ? 'longBreak' : 'shortBreak';
+        }
+
+        return 'work';
+      }
+
+      function switchMode(nextMode, statusText) {
+        state.currentMode = nextMode;
+        state.remainingSeconds = getDefaultRemaining(nextMode);
+        state.startedAt = 0;
+        state.endTime = 0;
+        updateStatus(statusText, true);
+        render();
+      }
+
+      function completeCurrentSession() {
+        const finishedMode = state.currentMode;
+        const finishedMeta = SESSION_META[finishedMode];
+
+        state.isRunning = false;
+        state.remainingSeconds = 0;
+        render();
+        notifyCompletion(finishedMeta.completeMessage);
+
+        if (finishedMode === 'work') {
+          state.completedPomodoros += 1;
+        }
+
+        const nextMode = selectNextMode();
+        switchMode(nextMode, finishedMeta.completeMessage);
+      }
+
+      function tick() {
+        if (!state.isRunning) {
+          return;
+        }
+
+        const secondsLeft = Math.max(0, (state.endTime - Date.now()) / 1000);
+        state.remainingSeconds = secondsLeft;
+        render();
+
+        if (secondsLeft <= 0) {
+          completeCurrentSession();
+          return;
+        }
+
+        state.rafId = window.requestAnimationFrame(tick);
+      }
+
+      function startTimer() {
+        if (state.isRunning) {
+          return;
+        }
+
+        requestNotificationPermission();
+        state.isRunning = true;
+        state.startedAt = Date.now();
+        state.endTime = state.startedAt + state.remainingSeconds * 1000;
+        updateStatus(`Running ${SESSION_META[state.currentMode].label.toLowerCase()}.`, true);
+        render();
+        state.rafId = window.requestAnimationFrame(tick);
+      }
+
+      function pauseTimer() {
+        if (!state.isRunning) {
+          return;
+        }
+
+        state.isRunning = false;
+        if (state.rafId) {
+          window.cancelAnimationFrame(state.rafId);
+          state.rafId = null;
+        }
+        state.remainingSeconds = Math.max(0, (state.endTime - Date.now()) / 1000);
+        updateStatus('Timer paused.');
+        render();
+      }
+
+      function resetTimer() {
+        if (state.rafId) {
+          window.cancelAnimationFrame(state.rafId);
+          state.rafId = null;
+        }
+        state.isRunning = false;
+        state.currentMode = 'work';
+        state.remainingSeconds = DURATIONS.work;
+        state.startedAt = 0;
+        state.endTime = 0;
+        updateStatus('Timer reset to a fresh 25-minute work session.');
+        render();
+      }
+
+      toggleButton.addEventListener('click', () => {
+        if (state.isRunning) {
+          pauseTimer();
+          return;
+        }
+
+        startTimer();
       });
-      refreshButton.addEventListener('click', loadContacts);
 
-      tableBody.addEventListener('click', (event) => {
-        const button = event.target.closest('button[data-action]');
-        if (!button || busy) {
-          return;
-        }
+      resetButton.addEventListener('click', resetTimer);
 
-        const id = Number(button.dataset.id);
-        const contact = contacts.find((entry) => entry.id === id);
-        if (!contact) {
-          return;
-        }
-
-        if (button.dataset.action === 'edit') {
-          startEdit(contact);
-          return;
-        }
-
-        if (button.dataset.action === 'delete') {
-          deleteContact(contact);
-        }
-      });
-
-      resetForm();
-      loadContacts();
+      render();
     </script>
   </body>
 </html>
