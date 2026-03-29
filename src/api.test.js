@@ -1,0 +1,125 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dbPath = path.resolve(__dirname, '..', 'data', 'contacts.db');
+
+let server;
+let baseUrl;
+
+test.before(async () => {
+  fs.rmSync(dbPath, { force: true });
+  const { createApp } = await import('./server.js');
+  server = createApp();
+
+  await new Promise((resolve) => {
+    server.listen(0, () => {
+      const address = server.address();
+      baseUrl = `http://127.0.0.1:${address.port}`;
+      resolve();
+    });
+  });
+});
+
+test.after(async () => {
+  if (server) {
+    await new Promise((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      });
+    });
+  }
+
+  fs.rmSync(dbPath, { force: true });
+});
+
+test('health endpoint returns 200', async () => {
+  const response = await fetch(`${baseUrl}/api/health`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'application/json');
+  assert.deepEqual(await response.json(), { status: 'ok' });
+});
+
+test('contacts CRUD flow works end-to-end', async () => {
+  const createResponse = await fetch(`${baseUrl}/api/contacts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      phone: '123-456-7890',
+    }),
+  });
+
+  assert.equal(createResponse.status, 201);
+  assert.equal(createResponse.headers.get('content-type'), 'application/json');
+
+  const createdContact = await createResponse.json();
+  assert.equal(createdContact.name, 'Ada Lovelace');
+  assert.equal(createdContact.email, 'ada@example.com');
+  assert.equal(createdContact.phone, '123-456-7890');
+  assert.ok(createdContact.id);
+
+  const listResponse = await fetch(`${baseUrl}/api/contacts`);
+  assert.equal(listResponse.status, 200);
+  assert.equal(listResponse.headers.get('content-type'), 'application/json');
+
+  const contacts = await listResponse.json();
+  assert.ok(contacts.some((contact) => contact.id === createdContact.id));
+
+  const getResponse = await fetch(`${baseUrl}/api/contacts/${createdContact.id}`);
+  assert.equal(getResponse.status, 200);
+  assert.equal(getResponse.headers.get('content-type'), 'application/json');
+  assert.equal((await getResponse.json()).id, createdContact.id);
+
+  const updateResponse = await fetch(`${baseUrl}/api/contacts/${createdContact.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Ada King',
+      email: 'ada.king@example.com',
+      phone: '555-0000',
+    }),
+  });
+
+  assert.equal(updateResponse.status, 200);
+  assert.equal(updateResponse.headers.get('content-type'), 'application/json');
+
+  const updatedContact = await updateResponse.json();
+  assert.equal(updatedContact.name, 'Ada King');
+  assert.equal(updatedContact.email, 'ada.king@example.com');
+  assert.equal(updatedContact.phone, '555-0000');
+
+  const deleteResponse = await fetch(`${baseUrl}/api/contacts/${createdContact.id}`, {
+    method: 'DELETE',
+  });
+
+  assert.equal(deleteResponse.status, 204);
+  assert.equal(deleteResponse.headers.get('content-type'), 'application/json');
+  assert.equal(await deleteResponse.text(), '');
+
+  const missingResponse = await fetch(`${baseUrl}/api/contacts/${createdContact.id}`);
+  assert.equal(missingResponse.status, 404);
+  assert.equal(missingResponse.headers.get('content-type'), 'application/json');
+  assert.deepEqual(await missingResponse.json(), { error: 'Not Found' });
+});
+
+test('unsupported methods return 405', async () => {
+  const response = await fetch(`${baseUrl}/api/contacts`, {
+    method: 'PATCH',
+  });
+
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.get('content-type'), 'application/json');
+  assert.deepEqual(await response.json(), { error: 'Method Not Allowed' });
+});
