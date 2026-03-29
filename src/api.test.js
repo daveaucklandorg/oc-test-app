@@ -123,3 +123,17 @@ test('unsupported methods return 405', async () => {
   assert.equal(response.headers.get('content-type'), 'application/json');
   assert.deepEqual(await response.json(), { error: 'Method Not Allowed' });
 });
+
+test('serves the frontend for non-api routes', async () => {
+  const rootResponse = await fetch(`${baseUrl}/`);
+
+  assert.equal(rootResponse.status, 200);
+  assert.match(rootResponse.headers.get('content-type') ?? '', /^text\/html/);
+  assert.match(await rootResponse.text(), /<title>Contact Book<\/title>/);
+
+  const nestedRouteResponse = await fetch(`${baseUrl}/contacts/123`);
+
+  assert.equal(nestedRouteResponse.status, 200);
+  assert.match(nestedRouteResponse.headers.get('content-type') ?? '', /^text\/html/);
+  assert.match(await nestedRouteResponse.text(), /Contact Book/);
+});
