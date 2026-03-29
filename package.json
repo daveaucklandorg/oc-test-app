@@ -7,6 +7,7 @@
     "test": "node --test src/**/*.test.js",
     "typecheck": "echo 'no TypeScript configured'"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "better-sqlite3": "^12.8.0"
+  }
 }
