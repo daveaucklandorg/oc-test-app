@@ -95,3 +95,20 @@ test('API contact lifecycle', async () => {
   assert.equal(deletedGetResponse.status, 404);
   assert.deepEqual(await deletedGetResponse.json(), { error: 'Not Found' });
 });
+
+test('serves the pomodoro frontend for non-api routes', async () => {
+  const rootResponse = await fetch(`${baseUrl}/`);
+
+  assert.equal(rootResponse.status, 200);
+  assert.match(rootResponse.headers.get('content-type') ?? '', /^text\/html/);
+  assert.match(await rootResponse.text(), /<title>Pomodoro Timer<\/title>/);
+
+  const nestedRouteResponse = await fetch(`${baseUrl}/timer/mobile`);
+
+  assert.equal(nestedRouteResponse.status, 200);
+  assert.match(nestedRouteResponse.headers.get('content-type') ?? '', /^text\/html/);
+
+  const nestedHtml = await nestedRouteResponse.text();
+  assert.match(nestedHtml, /Pomodoro Timer/);
+  assert.match(nestedHtml, /25:00/);
+});
