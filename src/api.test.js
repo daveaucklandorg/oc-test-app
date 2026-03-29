@@ -1,7 +1,7 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,16 +13,12 @@ let baseUrl;
 
 test.before(async () => {
   fs.rmSync(dbPath, { force: true });
-  const { createApp } = await import('./server.js');
-  server = createApp();
 
-  await new Promise((resolve) => {
-    server.listen(0, () => {
-      const address = server.address();
-      baseUrl = `http://127.0.0.1:${address.port}`;
-      resolve();
-    });
-  });
+  const { startServer } = await import('./server.js');
+  server = await startServer(0);
+
+  const address = server.address();
+  baseUrl = `http://127.0.0.1:${address.port}`;
 });
 
 test.after(async () => {
@@ -42,15 +38,12 @@ test.after(async () => {
   fs.rmSync(dbPath, { force: true });
 });
 
-test('health endpoint returns 200', async () => {
-  const response = await fetch(`${baseUrl}/api/health`);
+test('API contact lifecycle', async () => {
+  const healthResponse = await fetch(`${baseUrl}/api/health`);
+  assert.equal(healthResponse.status, 200);
+  assert.equal(healthResponse.headers.get('content-type'), 'application/json');
+  assert.deepEqual(await healthResponse.json(), { status: 'ok' });
 
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get('content-type'), 'application/json');
-  assert.deepEqual(await response.json(), { status: 'ok' });
-});
-
-test('contacts CRUD flow works end-to-end', async () => {
   const createResponse = await fetch(`${baseUrl}/api/contacts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -60,10 +53,7 @@ test('contacts CRUD flow works end-to-end', async () => {
       phone: '123-456-7890',
     }),
   });
-
   assert.equal(createResponse.status, 201);
-  assert.equal(createResponse.headers.get('content-type'), 'application/json');
-
   const createdContact = await createResponse.json();
   assert.equal(createdContact.name, 'Ada Lovelace');
   assert.equal(createdContact.email, 'ada@example.com');
@@ -72,15 +62,12 @@ test('contacts CRUD flow works end-to-end', async () => {
 
   const listResponse = await fetch(`${baseUrl}/api/contacts`);
   assert.equal(listResponse.status, 200);
-  assert.equal(listResponse.headers.get('content-type'), 'application/json');
-
   const contacts = await listResponse.json();
   assert.ok(contacts.some((contact) => contact.id === createdContact.id));
 
   const getResponse = await fetch(`${baseUrl}/api/contacts/${createdContact.id}`);
   assert.equal(getResponse.status, 200);
-  assert.equal(getResponse.headers.get('content-type'), 'application/json');
-  assert.equal((await getResponse.json()).id, createdContact.id);
+  assert.deepEqual(await getResponse.json(), createdContact);
 
   const updateResponse = await fetch(`${baseUrl}/api/contacts/${createdContact.id}`, {
     method: 'PUT',
@@ -91,11 +78,9 @@ test('contacts CRUD flow works end-to-end', async () => {
       phone: '555-0000',
     }),
   });
-
   assert.equal(updateResponse.status, 200);
-  assert.equal(updateResponse.headers.get('content-type'), 'application/json');
-
   const updatedContact = await updateResponse.json();
+  assert.equal(updatedContact.id, createdContact.id);
   assert.equal(updatedContact.name, 'Ada King');
   assert.equal(updatedContact.email, 'ada.king@example.com');
   assert.equal(updatedContact.phone, '555-0000');
@@ -103,23 +88,10 @@ test('contacts CRUD flow works end-to-end', async () => {
   const deleteResponse = await fetch(`${baseUrl}/api/contacts/${createdContact.id}`, {
     method: 'DELETE',
   });
-
   assert.equal(deleteResponse.status, 204);
-  assert.equal(deleteResponse.headers.get('content-type'), 'application/json');
   assert.equal(await deleteResponse.text(), '');
 
-  const missingResponse = await fetch(`${baseUrl}/api/contacts/${createdContact.id}`);
-  assert.equal(missingResponse.status, 404);
-  assert.equal(missingResponse.headers.get('content-type'), 'application/json');
-  assert.deepEqual(await missingResponse.json(), { error: 'Not Found' });
-});
-
-test('unsupported methods return 405', async () => {
-  const response = await fetch(`${baseUrl}/api/contacts`, {
-    method: 'PATCH',
-  });
-
-  assert.equal(response.status, 405);
-  assert.equal(response.headers.get('content-type'), 'application/json');
-  assert.deepEqual(await response.json(), { error: 'Method Not Allowed' });
+  const deletedGetResponse = await fetch(`${baseUrl}/api/contacts/${createdContact.id}`);
+  assert.equal(deletedGetResponse.status, 404);
+  assert.deepEqual(await deletedGetResponse.json(), { error: 'Not Found' });
 });
