@@ -5,8 +5,9 @@ import Database from 'better-sqlite3';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dataDir = path.resolve(__dirname, '..', 'data');
-const dbPath = path.join(dataDir, 'contacts.db');
+const defaultDataDir = path.resolve(__dirname, '..', 'data');
+const dbPath = process.env.CONTACTS_DB_PATH || path.join(defaultDataDir, 'contacts.db');
+const dataDir = path.dirname(dbPath);
 
 fs.mkdirSync(dataDir, { recursive: true });
 
@@ -52,6 +53,19 @@ const deleteStmt = db.prepare(`
   WHERE id = ?
 `);
 
+function normalizeOptionalText(value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    return String(value);
+  }
+
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 function normalizeContactInput({ name, email = null, phone = null } = {}) {
   const normalizedName = typeof name === 'string' ? name.trim() : '';
 
@@ -61,8 +75,8 @@ function normalizeContactInput({ name, email = null, phone = null } = {}) {
 
   return {
     name: normalizedName,
-    email: email ?? null,
-    phone: phone ?? null,
+    email: normalizeOptionalText(email),
+    phone: normalizeOptionalText(phone),
   };
 }
 
@@ -96,4 +110,3 @@ export function deleteById(id) {
   const result = deleteStmt.run(id);
   return result.changes > 0;
 }
-

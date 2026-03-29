@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OC Test App Contact Book</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f4f7fb;
+        color: #1f2937;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 32px 16px;
+        background: linear-gradient(180deg, #f8fbff 0%, #eef4fa 100%);
+      }
+
+      .app {
+        width: min(960px, 100%);
+        background: #ffffff;
+        border-radius: 18px;
+        box-shadow: 0 18px 60px rgba(15, 23, 42, 0.12);
+        padding: 32px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(1.75rem, 3vw, 2.4rem);
+      }
+
+      .subtitle {
+        margin: 0 0 24px;
+        color: #4b5563;
+      }
+
+      .status {
+        min-height: 24px;
+        margin-bottom: 16px;
+        color: #1d4ed8;
+        font-weight: 600;
+      }
+
+      .status.error {
+        color: #b91c1c;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 24px;
+      }
+
+      .panel {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 20px;
+      }
+
+      .panel h2 {
+        margin-top: 0;
+        font-size: 1.1rem;
+      }
+
+      form {
+        display: grid;
+        gap: 12px;
+      }
+
+      label {
+        font-size: 0.95rem;
+        font-weight: 600;
+      }
+
+      input {
+        width: 100%;
+        margin-top: 6px;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        font: inherit;
+        background: #fff;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.05s ease, opacity 0.2s ease;
+      }
+
+      button:hover {
+        opacity: 0.92;
+      }
+
+      button:active {
+        transform: translateY(1px);
+      }
+
+      .primary {
+        background: #2563eb;
+        color: white;
+      }
+
+      .secondary {
+        background: #e5e7eb;
+        color: #111827;
+      }
+
+      .danger {
+        background: #ef4444;
+        color: white;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th, td {
+        text-align: left;
+        padding: 14px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        vertical-align: top;
+      }
+
+      th {
+        color: #475569;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      td.actions {
+        width: 160px;
+      }
+
+      .actions-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .empty {
+        padding: 24px 0;
+        color: #6b7280;
+      }
+
+      @media (max-width: 860px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .app {
+          padding: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <h1>Contact Book</h1>
+      <p class="subtitle">Add, edit, and remove contacts with a simple vanilla JS interface.</p>
+      <div id="status" class="status" aria-live="polite"></div>
+
+      <section class="layout">
+        <aside class="panel">
+          <h2 id="form-title">Add Contact</h2>
+          <form id="contact-form">
+            <label>
+              Name
+              <input id="name" name="name" type="text" required maxlength="100" />
+            </label>
+            <label>
+              Email
+              <input id="email" name="email" type="email" maxlength="200" />
+            </label>
+            <label>
+              Phone
+              <input id="phone" name="phone" type="text" maxlength="50" />
+            </label>
+            <div class="actions-row">
+              <button type="submit" id="submit-button" class="primary">Add Contact</button>
+              <button type="button" id="cancel-button" class="secondary" hidden>Cancel</button>
+            </div>
+          </form>
+        </aside>
+
+        <section class="panel">
+          <h2>All Contacts</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="contacts-body"></tbody>
+            </table>
+          </div>
+          <p id="empty-state" class="empty" hidden>No contacts yet. Add one to get started.</p>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById('contact-form');
+      const formTitle = document.getElementById('form-title');
+      const submitButton = document.getElementById('submit-button');
+      const cancelButton = document.getElementById('cancel-button');
+      const statusEl = document.getElementById('status');
+      const contactsBody = document.getElementById('contacts-body');
+      const emptyState = document.getElementById('empty-state');
+      const nameInput = document.getElementById('name');
+      const emailInput = document.getElementById('email');
+      const phoneInput = document.getElementById('phone');
+
+      let editingId = null;
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function setStatus(message, isError = false) {
+        statusEl.textContent = message;
+        statusEl.classList.toggle('error', isError);
+      }
+
+      function resetForm() {
+        editingId = null;
+        form.reset();
+        formTitle.textContent = 'Add Contact';
+        submitButton.textContent = 'Add Contact';
+        cancelButton.hidden = true;
+      }
+
+      function startEdit(contact) {
+        editingId = contact.id;
+        formTitle.textContent = 'Edit Contact';
+        submitButton.textContent = 'Save Changes';
+        cancelButton.hidden = false;
+        nameInput.value = contact.name || '';
+        emailInput.value = contact.email || '';
+        phoneInput.value = contact.phone || '';
+        nameInput.focus();
+        setStatus(`Editing ${contact.name}`);
+      }
+
+      function renderContacts(contacts) {
+        contactsBody.innerHTML = '';
+        emptyState.hidden = contacts.length > 0;
+
+        for (const contact of contacts) {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${escapeHtml(contact.name)}</td>
+            <td>${escapeHtml(contact.email || '—')}</td>
+            <td>${escapeHtml(contact.phone || '—')}</td>
+            <td class="actions">
+              <div class="actions-row">
+                <button type="button" class="secondary" data-action="edit">Edit</button>
+                <button type="button" class="danger" data-action="delete">Delete</button>
+              </div>
+            </td>
+          `;
+
+          row.querySelector('[data-action="edit"]').addEventListener('click', () => startEdit(contact));
+          row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+            const confirmed = window.confirm(`Delete ${contact.name}?`);
+            if (!confirmed) {
+              return;
+            }
+
+            try {
+              const response = await fetch(`/api/contacts/${contact.id}`, { method: 'DELETE' });
+              if (!response.ok) {
+                throw new Error('Failed to delete contact');
+              }
+              if (editingId === contact.id) {
+                resetForm();
+              }
+              setStatus(`Deleted ${contact.name}`);
+              await loadContacts();
+            } catch (error) {
+              setStatus(error.message, true);
+            }
+          });
+
+          contactsBody.appendChild(row);
+        }
+      }
+
+      async function loadContacts() {
+        try {
+          const response = await fetch('/api/contacts');
+          if (!response.ok) {
+            throw new Error('Failed to load contacts');
+          }
+          const contacts = await response.json();
+          renderContacts(contacts);
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const payload = {
+          name: nameInput.value,
+          email: emailInput.value,
+          phone: phoneInput.value,
+        };
+
+        const isEditing = editingId !== null;
+        const url = isEditing ? `/api/contacts/${editingId}` : '/api/contacts';
+        const method = isEditing ? 'PUT' : 'POST';
+
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          const data = response.status === 204 ? null : await response.json().catch(() => null);
+          if (!response.ok) {
+            throw new Error(data?.error || 'Request failed');
+          }
+
+          setStatus(isEditing ? `Updated ${data.name}` : `Added ${data.name}`);
+          resetForm();
+          await loadContacts();
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      });
+
+      cancelButton.addEventListener('click', () => {
+        resetForm();
+        setStatus('Edit cancelled');
+      });
+
+      resetForm();
+      loadContacts();
+    </script>
+  </body>
+</html>
