@@ -28,6 +28,18 @@ const selectAllStmt = db.prepare(`
   ORDER BY id ASC
 `);
 
+const selectPaginatedStmt = db.prepare(`
+  SELECT id, name, email, phone, created_at
+  FROM contacts
+  ORDER BY id ASC
+  LIMIT ? OFFSET ?
+`);
+
+const countAllStmt = db.prepare(`
+  SELECT COUNT(*) AS total
+  FROM contacts
+`);
+
 const selectByIdStmt = db.prepare(`
   SELECT id, name, email, phone, created_at
   FROM contacts
@@ -70,6 +82,14 @@ export function getAll() {
   return selectAllStmt.all();
 }
 
+export function getPaginated(limit, offset) {
+  return selectPaginatedStmt.all(limit, offset);
+}
+
+export function countAll() {
+  return countAllStmt.get().total;
+}
+
 export function getById(id) {
   return selectByIdStmt.get(id) ?? null;
 }
@@ -96,4 +116,3 @@ export function deleteById(id) {
   const result = deleteStmt.run(id);
   return result.changes > 0;
 }
-
