@@ -1,7 +1,10 @@
-import { create, deleteById, getAll, getById, update } from './db.js';
+import { countAll, create, deleteById, getById, getPaginated, update } from './db.js';
 
-function sendJson(res, statusCode, payload) {
-  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+function sendJson(res, statusCode, payload, headers = {}) {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json', ...headers });
   res.end(payload === undefined ? '' : JSON.stringify(payload));
 }
 
@@ -42,6 +45,59 @@ function parseContactId(pathname) {
   return match ? Number(match[1]) : null;
 }
 
+function parsePagination(searchParams) {
+  const limitParam = searchParams.get('limit');
+  const offsetParam = searchParams.get('offset');
+
+  let limit = DEFAULT_LIMIT;
+  let offset = 0;
+
+  if (limitParam !== null) {
+    limit = Number(limitParam);
+
+    if (!Number.isInteger(limit) || limit <= 0) {
+      throw new Error('limit must be a positive integer');
+    }
+
+    limit = Math.min(limit, MAX_LIMIT);
+  }
+
+  if (offsetParam !== null) {
+    offset = Number(offsetParam);
+
+    if (!Number.isInteger(offset) || offset < 0) {
+      throw new Error('offset must be a non-negative integer');
+    }
+  }
+
+  return { limit, offset };
+}
+
+function buildPageUrl(url, req, offset, limit) {
+  const pageUrl = new URL(url.pathname, `http://${req.headers.host ?? 'localhost'}`);
+  pageUrl.searchParams.set('limit', String(limit));
+  pageUrl.searchParams.set('offset', String(offset));
+  return pageUrl.toString();
+}
+
+function buildLinkHeader(url, req, total, limit, offset) {
+  const links = [];
+  const lastOffset = total === 0 ? 0 : Math.floor((total - 1) / limit) * limit;
+
+  links.push(`<${buildPageUrl(url, req, 0, limit)}>; rel="first"`);
+  links.push(`<${buildPageUrl(url, req, lastOffset, limit)}>; rel="last"`);
+
+  if (offset > 0) {
+    links.push(`<${buildPageUrl(url, req, Math.max(0, offset - limit), limit)}>; rel="prev"`);
+  }
+
+  if (offset + limit < total) {
+    links.push(`<${buildPageUrl(url, req, offset + limit, limit)}>; rel="next"`);
+  }
+
+  return links.join(', ');
+}
+
 export async function router(req, res) {
   const method = req.method ?? 'GET';
   const url = new URL(req.url ?? '/', 'http://localhost');
@@ -58,7 +114,24 @@ export async function router(req, res) {
 
     if (pathname === '/api/contacts') {
       if (method === 'GET') {
-        return sendJson(res, 200, getAll());
+        const { limit, offset } = parsePagination(url.searchParams);
+        const total = countAll();
+        const data = getPaginated(limit, offset);
+        const link = buildLinkHeader(url, req, total, limit, offset);
+
+        return sendJson(
+          res,
+          200,
+          {
+            data,
+            pagination: {
+              total,
+              limit,
+              offset,
+            },
+          },
+          { Link: link },
+        );
       }
 
       if (method === 'POST') {
@@ -105,6 +178,14 @@ export async function router(req, res) {
     }
 
     if (error instanceof Error && error.message === 'name is required') {
+      return sendJson(res, 400, { error: error.message });
+    }
+
+    if (
+      error instanceof Error
+      && (error.message === 'limit must be a positive integer'
+        || error.message === 'offset must be a non-negative integer')
+    ) {
       return sendJson(res, 400, { error: error.message });
     }
 
