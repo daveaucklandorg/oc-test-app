@@ -48,6 +48,17 @@ export async function router(req, res) {
   const { pathname } = url;
 
   try {
+    if (pathname === '/health') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      return sendJson(res, 200, {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     if (pathname === '/api/health') {
       if (method !== 'GET') {
         return sendMethodNotAllowed(res);
