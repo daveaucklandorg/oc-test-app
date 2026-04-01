@@ -53,7 +53,7 @@ export async function router(req, res) {
         return sendMethodNotAllowed(res);
       }
 
-      return sendJson(res, 200, { status: 'ok' });
+      return sendJson(res, 200, { status: 'ok', nodeVersion: process.version });
     }
 
     if (pathname === '/api/contacts') {
