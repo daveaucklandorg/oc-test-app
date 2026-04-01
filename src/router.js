@@ -1,4 +1,5 @@
 import { create, deleteById, getAll, getById, update } from './db.js';
+import { AppError } from './errors/AppError.js';
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json' });
@@ -6,11 +7,11 @@ function sendJson(res, statusCode, payload) {
 }
 
 function sendMethodNotAllowed(res) {
-  sendJson(res, 405, { error: 'Method Not Allowed' });
+  throw new AppError('Method Not Allowed', 405);
 }
 
 function sendNotFound(res) {
-  sendJson(res, 404, { error: 'Not Found' });
+  throw new AppError('Not Found', 404);
 }
 
 async function readJsonBody(req) {
@@ -33,7 +34,7 @@ async function readJsonBody(req) {
   try {
     return JSON.parse(rawBody);
   } catch {
-    throw new Error('Invalid JSON body');
+    throw new AppError('Invalid JSON body', 400);
   }
 }
 
@@ -47,68 +48,55 @@ export async function router(req, res) {
   const url = new URL(req.url ?? '/', 'http://localhost');
   const { pathname } = url;
 
-  try {
-    if (pathname === '/api/health') {
-      if (method !== 'GET') {
-        return sendMethodNotAllowed(res);
-      }
-
-      return sendJson(res, 200, { status: 'ok' });
-    }
-
-    if (pathname === '/api/contacts') {
-      if (method === 'GET') {
-        return sendJson(res, 200, getAll());
-      }
-
-      if (method === 'POST') {
-        const body = await readJsonBody(req);
-        const contact = create(body);
-        return sendJson(res, 201, contact);
-      }
-
+  if (pathname === '/api/health') {
+    if (method !== 'GET') {
       return sendMethodNotAllowed(res);
     }
 
-    const contactId = parseContactId(pathname);
-
-    if (contactId !== null) {
-      if (method === 'GET') {
-        const contact = getById(contactId);
-        return contact ? sendJson(res, 200, contact) : sendNotFound(res);
-      }
-
-      if (method === 'PUT') {
-        const body = await readJsonBody(req);
-        const contact = update(contactId, body);
-        return contact ? sendJson(res, 200, contact) : sendNotFound(res);
-      }
-
-      if (method === 'DELETE') {
-        const deleted = deleteById(contactId);
-
-        if (!deleted) {
-          return sendNotFound(res);
-        }
-
-        res.writeHead(204, { 'Content-Type': 'application/json' });
-        return res.end();
-      }
-
-      return sendMethodNotAllowed(res);
-    }
-
-    return sendNotFound(res);
-  } catch (error) {
-    if (error instanceof Error && error.message === 'Invalid JSON body') {
-      return sendJson(res, 400, { error: error.message });
-    }
-
-    if (error instanceof Error && error.message === 'name is required') {
-      return sendJson(res, 400, { error: error.message });
-    }
-
-    console.error(error);
-    return sendJson(res, 500, { error: 'Internal Server Error' });
+    return sendJson(res, 200, { status: 'ok' });
   }
+
+  if (pathname === '/api/contacts') {
+    if (method === 'GET') {
+      return sendJson(res, 200, getAll());
+    }
+
+    if (method === 'POST') {
+      const body = await readJsonBody(req);
+      const contact = create(body);
+      return sendJson(res, 201, contact);
+    }
+
+    return sendMethodNotAllowed(res);
+  }
+
+  const contactId = parseContactId(pathname);
+
+  if (contactId !== null) {
+    if (method === 'GET') {
+      const contact = getById(contactId);
+      return contact ? sendJson(res, 200, contact) : sendNotFound(res);
+    }
+
+    if (method === 'PUT') {
+      const body = await readJsonBody(req);
+      const contact = update(contactId, body);
+      return contact ? sendJson(res, 200, contact) : sendNotFound(res);
+    }
+
+    if (method === 'DELETE') {
+      const deleted = deleteById(contactId);
+
+      if (!deleted) {
+        return sendNotFound(res);
+      }
+
+      res.writeHead(204, { 'Content-Type': 'application/json' });
+      return res.end();
+    }
+
+    return sendMethodNotAllowed(res);
+  }
+
+  return sendNotFound(res);
 }
