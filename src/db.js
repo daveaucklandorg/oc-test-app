@@ -52,17 +52,47 @@ const deleteStmt = db.prepare(`
   WHERE id = ?
 `);
 
-function normalizeContactInput({ name, email = null, phone = null } = {}) {
-  const normalizedName = typeof name === 'string' ? name.trim() : '';
-
-  if (!normalizedName) {
-    throw new Error('name is required');
+function normalizeOptionalString(value, fieldName) {
+  if (value === undefined || value === null) {
+    return null;
   }
+
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be a string if provided`);
+  }
+
+  return value;
+}
+
+function normalizeDescription(description) {
+  if (description === undefined || description === null) {
+    return null;
+  }
+
+  if (typeof description !== 'string' || description.length > 500) {
+    throw new Error('description must be a string (max 500 characters)');
+  }
+
+  return description;
+}
+
+function normalizeContactInput({ name, email = null, phone = null, description = null } = {}) {
+  if (typeof name !== 'string') {
+    throw new Error('name is required and must be a string (max 100 characters)');
+  }
+
+  const normalizedName = name.trim();
+
+  if (!normalizedName || normalizedName.length > 100) {
+    throw new Error('name is required and must be a string (max 100 characters)');
+  }
+
+  normalizeDescription(description);
 
   return {
     name: normalizedName,
-    email: email ?? null,
-    phone: phone ?? null,
+    email: normalizeOptionalString(email, 'email'),
+    phone: normalizeOptionalString(phone, 'phone'),
   };
 }
 
@@ -96,4 +126,3 @@ export function deleteById(id) {
   const result = deleteStmt.run(id);
   return result.changes > 0;
 }
-
