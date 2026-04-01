@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
+import { AppError } from './errors/AppError.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,7 +57,7 @@ function normalizeContactInput({ name, email = null, phone = null } = {}) {
   const normalizedName = typeof name === 'string' ? name.trim() : '';
 
   if (!normalizedName) {
-    throw new Error('name is required');
+    throw new AppError('name is required', 400);
   }
 
   return {
@@ -96,4 +97,3 @@ export function deleteById(id) {
   const result = deleteStmt.run(id);
   return result.changes > 0;
 }
-

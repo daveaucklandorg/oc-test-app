@@ -2,16 +2,15 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 
 import { router } from './router.js';
+import { asyncHandler } from './middleware/asyncHandler.js';
 
 const PORT = Number(process.env.PORT || 3456);
 
+const handleRequest = asyncHandler(router);
+
 function createApp() {
   return http.createServer((req, res) => {
-    Promise.resolve(router(req, res)).catch((error) => {
-      console.error(error);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Internal Server Error' }));
-    });
+    handleRequest(req, res);
   });
 }
 
