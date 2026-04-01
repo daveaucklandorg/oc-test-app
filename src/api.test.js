@@ -42,7 +42,10 @@ test('API contact lifecycle', async () => {
   const healthResponse = await fetch(`${baseUrl}/api/health`);
   assert.equal(healthResponse.status, 200);
   assert.equal(healthResponse.headers.get('content-type'), 'application/json');
-  assert.deepEqual(await healthResponse.json(), { status: 'ok' });
+  const healthPayload = await healthResponse.json();
+  assert.equal(healthPayload.status, 'ok');
+  assert.match(healthPayload.timestamp, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  assert.equal(new Date(healthPayload.timestamp).toISOString(), healthPayload.timestamp);
 
   const createResponse = await fetch(`${baseUrl}/api/contacts`, {
     method: 'POST',
