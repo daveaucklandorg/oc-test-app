@@ -1,8 +1,13 @@
-import { create, deleteById, getAll, getById, update } from './db.js';
+import { create, deleteById, getAll, getById, update, getSetting, setSetting, dbPath } from './db.js';
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json' });
   res.end(payload === undefined ? '' : JSON.stringify(payload));
+}
+
+function sendHtml(res, statusCode, html) {
+  res.writeHead(statusCode, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(html);
 }
 
 function sendMethodNotAllowed(res) {
@@ -13,23 +18,17 @@ function sendNotFound(res) {
   sendJson(res, 404, { error: 'Not Found' });
 }
 
-async function readJsonBody(req) {
+async function readBody(req) {
   const chunks = [];
-
   for await (const chunk of req) {
     chunks.push(chunk);
   }
+  return Buffer.concat(chunks).toString('utf8');
+}
 
-  if (chunks.length === 0) {
-    return {};
-  }
-
-  const rawBody = Buffer.concat(chunks).toString('utf8').trim();
-
-  if (!rawBody) {
-    return {};
-  }
-
+async function readJsonBody(req) {
+  const rawBody = (await readBody(req)).trim();
+  if (!rawBody) return {};
   try {
     return JSON.parse(rawBody);
   } catch {
@@ -42,12 +41,68 @@ function parseContactId(pathname) {
   return match ? Number(match[1]) : null;
 }
 
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 export async function router(req, res) {
   const method = req.method ?? 'GET';
   const url = new URL(req.url ?? '/', 'http://localhost');
   const { pathname } = url;
 
   try {
+    // GET / — home page
+    if (pathname === '/' && method === 'GET') {
+      return sendHtml(res, 200, `<!DOCTYPE html><html><head><title>OC Test App</title></head><body><h1>OC Test App</h1><nav><a href="/settings">Settings</a></nav></body></html>`);
+    }
+
+    // GET /settings — settings page
+    if (pathname === '/settings' && method === 'GET') {
+      const appName = getSetting('app_name') || '';
+      const port = process.env.PORT || 3456;
+      const html = `<!DOCTYPE html><html><head><title>Settings</title></head><body>
+<h1>Settings</h1>
+<p>App Name: ${escapeHtml(appName)}</p>
+<p>Port: ${escapeHtml(String(port))}</p>
+<p>Database Path: ${escapeHtml(dbPath)}</p>
+<form method="POST" action="/settings">
+<label>App Name: <input name="app_name" value="${escapeHtml(appName)}"></label>
+<button type="submit">Save</button>
+</form>
+</body></html>`;
+      return sendHtml(res, 200, html);
+    }
+
+    // POST /settings
+    if (pathname === '/settings' && method === 'POST') {
+      const contentType = (req.headers['content-type'] || '').toLowerCase();
+      const isJson = contentType.includes('application/json');
+      const raw = await readBody(req);
+      let appName;
+
+      if (isJson) {
+        const parsed = JSON.parse(raw || '{}');
+        appName = parsed.app_name;
+      } else {
+        const params = new URLSearchParams(raw);
+        appName = params.get('app_name');
+      }
+
+      const trimmed = (appName ?? '').trim();
+      if (!trimmed) {
+        return sendJson(res, 400, { error: 'app_name is required' });
+      }
+
+      setSetting('app_name', trimmed);
+
+      if (isJson) {
+        return sendJson(res, 200, { ok: true, app_name: trimmed });
+      }
+
+      res.writeHead(303, { Location: '/settings' });
+      return res.end();
+    }
+
     if (pathname === '/api/health') {
       if (method !== 'GET') {
         return sendMethodNotAllowed(res);

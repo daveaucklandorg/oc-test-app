@@ -6,7 +6,7 @@ import Database from 'better-sqlite3';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dataDir = path.resolve(__dirname, '..', 'data');
-const dbPath = path.join(dataDir, 'contacts.db');
+export const dbPath = path.join(dataDir, 'contacts.db');
 
 fs.mkdirSync(dataDir, { recursive: true });
 
@@ -19,7 +19,12 @@ db.exec(`
     email TEXT,
     phone TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
+  );
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
+  INSERT OR IGNORE INTO settings (key, value) VALUES ('app_name', 'OC Test App');
 `);
 
 const selectAllStmt = db.prepare(`
@@ -51,6 +56,9 @@ const deleteStmt = db.prepare(`
   DELETE FROM contacts
   WHERE id = ?
 `);
+
+const getSettingStmt = db.prepare('SELECT value FROM settings WHERE key = ?');
+const setSettingStmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
 
 function normalizeContactInput({ name, email = null, phone = null } = {}) {
   const normalizedName = typeof name === 'string' ? name.trim() : '';
@@ -97,3 +105,11 @@ export function deleteById(id) {
   return result.changes > 0;
 }
 
+export function getSetting(key) {
+  const row = getSettingStmt.get(key);
+  return row ? row.value : null;
+}
+
+export function setSetting(key, value) {
+  setSettingStmt.run(key, value);
+}
