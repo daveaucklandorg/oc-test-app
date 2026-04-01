@@ -1,5 +1,19 @@
 import { create, deleteById, getAll, getById, update } from './db.js';
 
+let requestCount = 0;
+
+function incrementRequestCount() {
+  requestCount++;
+}
+
+function getRequestCount() {
+  return requestCount;
+}
+
+function resetRequestCount() {
+  requestCount = 0;
+}
+
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json' });
   res.end(payload === undefined ? '' : JSON.stringify(payload));
@@ -43,11 +57,21 @@ function parseContactId(pathname) {
 }
 
 export async function router(req, res) {
+  incrementRequestCount();
+
   const method = req.method ?? 'GET';
   const url = new URL(req.url ?? '/', 'http://localhost');
   const { pathname } = url;
 
   try {
+    if (pathname === '/metrics') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      return sendJson(res, 200, { requestCount: getRequestCount() });
+    }
+
     if (pathname === '/api/health') {
       if (method !== 'GET') {
         return sendMethodNotAllowed(res);
@@ -112,3 +136,5 @@ export async function router(req, res) {
     return sendJson(res, 500, { error: 'Internal Server Error' });
   }
 }
+
+export { getRequestCount, resetRequestCount };
