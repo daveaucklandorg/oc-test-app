@@ -42,7 +42,19 @@ test('API contact lifecycle', async () => {
   const healthResponse = await fetch(`${baseUrl}/api/health`);
   assert.equal(healthResponse.status, 200);
   assert.equal(healthResponse.headers.get('content-type'), 'application/json');
-  assert.deepEqual(await healthResponse.json(), { status: 'ok' });
+  const healthPayload = await healthResponse.json();
+  assert.equal(healthPayload.status, 'ok');
+  assert.equal(typeof healthPayload.uptimeMs, 'number');
+  assert.equal(Number.isInteger(healthPayload.uptimeMs), true);
+  assert.equal(healthPayload.uptimeMs >= 0, true);
+
+  const nextHealthResponse = await fetch(`${baseUrl}/api/health`);
+  assert.equal(nextHealthResponse.status, 200);
+  const nextHealthPayload = await nextHealthResponse.json();
+  assert.equal(nextHealthPayload.status, 'ok');
+  assert.equal(typeof nextHealthPayload.uptimeMs, 'number');
+  assert.equal(Number.isInteger(nextHealthPayload.uptimeMs), true);
+  assert.equal(nextHealthPayload.uptimeMs >= healthPayload.uptimeMs, true);
 
   const createResponse = await fetch(`${baseUrl}/api/contacts`, {
     method: 'POST',
