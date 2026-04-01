@@ -1,4 +1,8 @@
+import packageJson from '../package.json' with { type: 'json' };
+
 import { create, deleteById, getAll, getById, update } from './db.js';
+
+const { version } = packageJson;
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json' });
@@ -54,6 +58,14 @@ export async function router(req, res) {
       }
 
       return sendJson(res, 200, { status: 'ok' });
+    }
+
+    if (pathname === '/version') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      return sendJson(res, 200, { version });
     }
 
     if (pathname === '/api/contacts') {

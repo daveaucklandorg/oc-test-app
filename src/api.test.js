@@ -4,9 +4,12 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import packageJson from '../package.json' with { type: 'json' };
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dbPath = path.resolve(__dirname, '..', 'data', 'contacts.db');
+const { version } = packageJson;
 
 let server;
 let baseUrl;
@@ -36,6 +39,14 @@ test.after(async () => {
   }
 
   fs.rmSync(dbPath, { force: true });
+});
+
+test('GET /version returns package version as JSON', async () => {
+  const response = await fetch(`${baseUrl}/version`);
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type') ?? '', /application\/json/);
+  assert.deepEqual(await response.json(), { version });
 });
 
 test('API contact lifecycle', async () => {
