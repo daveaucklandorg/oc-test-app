@@ -1,3 +1,5 @@
+import Database from 'better-sqlite3';
+
 import { create, deleteById, getAll, getById, update } from './db.js';
 
 function sendJson(res, statusCode, payload) {
@@ -48,6 +50,34 @@ export async function router(req, res) {
   const { pathname } = url;
 
   try {
+    if (pathname === '/readiness') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      const checks = {};
+      let allOk = true;
+
+      try {
+        const start = performance.now();
+        const db = new Database(':memory:');
+        db.prepare('SELECT 1').get();
+        db.close();
+        const latencyMs = Math.round((performance.now() - start) * 100) / 100;
+        checks.sqlite = { status: 'ok', latencyMs };
+      } catch (err) {
+        allOk = false;
+        checks.sqlite = { status: 'fail', error: err.message };
+      }
+
+      const statusCode = allOk ? 200 : 503;
+      return sendJson(res, statusCode, {
+        status: allOk ? 'ready' : 'not_ready',
+        checks,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     if (pathname === '/api/health') {
       if (method !== 'GET') {
         return sendMethodNotAllowed(res);
