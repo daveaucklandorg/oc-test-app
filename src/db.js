@@ -97,3 +97,5 @@ export function deleteById(id) {
   return result.changes > 0;
 }
 
+export { db };
+
