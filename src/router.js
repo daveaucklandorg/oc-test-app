@@ -48,6 +48,15 @@ export async function router(req, res) {
   const { pathname } = url;
 
   try {
+    if (pathname === '/ping') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      return res.end('pong');
+    }
+
     if (pathname === '/api/health') {
       if (method !== 'GET') {
         return sendMethodNotAllowed(res);
