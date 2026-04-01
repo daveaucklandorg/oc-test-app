@@ -1,4 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { create, deleteById, getAll, getById, update } from './db.js';
+import { markdownToHtml } from './markdown.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const publicDir = path.join(__dirname, '..', 'public');
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json' });
@@ -11,6 +19,28 @@ function sendMethodNotAllowed(res) {
 
 function sendNotFound(res) {
   sendJson(res, 404, { error: 'Not Found' });
+}
+
+function serveStaticFile(res, filePath) {
+  const ext = path.extname(filePath);
+  const contentTypes = {
+    '.html': 'text/html',
+    '.css': 'text/css',
+    '.js': 'text/javascript',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+  };
+  const contentType = contentTypes[ext] || 'application/octet-stream';
+
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    res.writeHead(200, { 'Content-Type': contentType });
+    res.end(content);
+  } catch {
+    sendNotFound(res);
+  }
 }
 
 async function readJsonBody(req) {
@@ -48,6 +78,7 @@ export async function router(req, res) {
   const { pathname } = url;
 
   try {
+    // Health endpoint
     if (pathname === '/api/health') {
       if (method !== 'GET') {
         return sendMethodNotAllowed(res);
@@ -56,6 +87,31 @@ export async function router(req, res) {
       return sendJson(res, 200, { status: 'ok' });
     }
 
+    // Markdown preview API
+    if (pathname === '/api/markdown') {
+      if (method !== 'POST') {
+        return sendMethodNotAllowed(res);
+      }
+
+      const body = await readJsonBody(req);
+
+      if (typeof body.markdown !== 'string') {
+        return sendJson(res, 400, { error: 'markdown field is required and must be a string' });
+      }
+
+      const html = markdownToHtml(body.markdown);
+      return sendJson(res, 200, { html });
+    }
+
+    // Markdown preview page
+    if (pathname === '/markdown' || pathname === '/markdown.html') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+      return serveStaticFile(res, path.join(publicDir, 'markdown.html'));
+    }
+
+    // Contacts API
     if (pathname === '/api/contacts') {
       if (method === 'GET') {
         return sendJson(res, 200, getAll());

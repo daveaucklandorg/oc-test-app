@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown Preview</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      padding: 1rem;
+    }
+    h1 { text-align: center; margin-bottom: 1rem; color: #2c3e50; }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      height: calc(100vh - 6rem);
+    }
+    .pane {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .pane-header {
+      padding: 0.5rem 1rem;
+      background: #eee;
+      border-bottom: 1px solid #ddd;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #555;
+    }
+    #editor {
+      flex: 1;
+      width: 100%;
+      border: none;
+      padding: 1rem;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+      background: #fff;
+    }
+    #preview {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    #preview h1, #preview h2, #preview h3,
+    #preview h4, #preview h5, #preview h6 {
+      margin: 0.8em 0 0.4em;
+      color: #2c3e50;
+    }
+    #preview h1 { font-size: 1.8em; border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+    #preview h2 { font-size: 1.4em; border-bottom: 1px solid #eee; padding-bottom: 0.2em; }
+    #preview p { margin: 0.6em 0; }
+    #preview code {
+      background: #f0f0f0;
+      padding: 0.15em 0.4em;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+    #preview pre {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 0.6em 0;
+    }
+    #preview pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+    #preview blockquote {
+      border-left: 4px solid #ddd;
+      padding: 0.5em 1em;
+      margin: 0.6em 0;
+      color: #666;
+      background: #f9f9f9;
+    }
+    #preview ul, #preview ol { margin: 0.6em 0; padding-left: 1.5em; }
+    #preview li { margin: 0.2em 0; }
+    #preview hr { border: none; border-top: 2px solid #eee; margin: 1em 0; }
+    #preview a { color: #3498db; }
+    #preview img { max-width: 100%; border-radius: 4px; }
+    .actions {
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+    .actions button {
+      padding: 0.4rem 1rem;
+      margin: 0 0.3rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .actions button:hover { background: #eee; }
+    @media (max-width: 768px) {
+      .container { grid-template-columns: 1fr; height: auto; }
+      .pane { min-height: 40vh; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Markdown Preview</h1>
+  <div class="container">
+    <div class="pane">
+      <div class="pane-header">Markdown</div>
+      <textarea id="editor" placeholder="Type your markdown here..."># Hello World
+
+This is a **markdown** preview tool. Type on the left and see the *rendered HTML* on the right.
+
+## Features
+
+- Live preview as you type
+- Supports **bold**, *italic*, and `inline code`
+- Code blocks with syntax highlighting class
+- [Links](https://example.com) and images
+- Lists (ordered and unordered)
+- Blockquotes and horizontal rules
+
+## Code Example
+
+```js
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+```
+
+> This is a blockquote spanning a line.
+
+---
+
+1. First item
+2. Second item
+3. Third item
+
+Enjoy writing markdown!</textarea>
+    </div>
+    <div class="pane">
+      <div class="pane-header">Preview</div>
+      <div id="preview"></div>
+    </div>
+  </div>
+  <div class="actions">
+    <button onclick="copyHtml()">Copy HTML</button>
+    <button onclick="clearEditor()">Clear</button>
+  </div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+    let debounceTimer;
+
+    async function renderPreview() {
+      const markdown = editor.value;
+      try {
+        const res = await fetch('/api/markdown', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ markdown: markdown })
+        });
+        const data = await res.json();
+        if (data.html !== undefined) {
+          preview.innerHTML = data.html;
+        } else if (data.error) {
+          preview.innerHTML = '<p style="color:red">' + data.error + '</p>';
+        }
+      } catch (err) {
+        preview.innerHTML = '<p style="color:red">Error connecting to server</p>';
+      }
+    }
+
+    editor.addEventListener('input', function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(renderPreview, 200);
+    });
+
+    function copyHtml() {
+      var html = preview.innerHTML;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(html).then(function() {
+          alert('HTML copied to clipboard!');
+        });
+      }
+    }
+
+    function clearEditor() {
+      editor.value = '';
+      preview.innerHTML = '';
+    }
+
+    renderPreview();
+  </script>
+</body>
+</html>
