@@ -44,6 +44,45 @@ test('API contact lifecycle', async () => {
   assert.equal(healthResponse.headers.get('content-type'), 'application/json');
   assert.deepEqual(await healthResponse.json(), { status: 'ok' });
 
+  const settingsPageResponse = await fetch(`${baseUrl}/settings`);
+  assert.equal(settingsPageResponse.status, 200);
+  assert.match(settingsPageResponse.headers.get('content-type'), /^text\/html;/);
+  assert.match(await settingsPageResponse.text(), /<h1>Settings<\/h1>/);
+
+  const createSettingResponse = await fetch(`${baseUrl}/api/settings/theme`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: 'dark' }),
+  });
+  assert.equal(createSettingResponse.status, 200);
+  assert.deepEqual(await createSettingResponse.json(), { key: 'theme', value: 'dark' });
+
+  const listSettingsResponse = await fetch(`${baseUrl}/api/settings`);
+  assert.equal(listSettingsResponse.status, 200);
+  assert.deepEqual(await listSettingsResponse.json(), [{ key: 'theme', value: 'dark' }]);
+
+  const getSettingResponse = await fetch(`${baseUrl}/api/settings/theme`);
+  assert.equal(getSettingResponse.status, 200);
+  assert.deepEqual(await getSettingResponse.json(), { key: 'theme', value: 'dark' });
+
+  const updateSettingResponse = await fetch(`${baseUrl}/api/settings/theme`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: 'light' }),
+  });
+  assert.equal(updateSettingResponse.status, 200);
+  assert.deepEqual(await updateSettingResponse.json(), { key: 'theme', value: 'light' });
+
+  const deleteSettingResponse = await fetch(`${baseUrl}/api/settings/theme`, {
+    method: 'DELETE',
+  });
+  assert.equal(deleteSettingResponse.status, 204);
+  assert.equal(await deleteSettingResponse.text(), '');
+
+  const missingSettingResponse = await fetch(`${baseUrl}/api/settings/theme`);
+  assert.equal(missingSettingResponse.status, 404);
+  assert.deepEqual(await missingSettingResponse.json(), { error: 'Not Found' });
+
   const createResponse = await fetch(`${baseUrl}/api/contacts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

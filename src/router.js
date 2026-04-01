@@ -1,8 +1,20 @@
 import { create, deleteById, getAll, getById, update } from './db.js';
+import {
+  deleteByKey,
+  getAll as getAllSettings,
+  getByKey,
+  upsert,
+} from './settings/settingsDb.js';
+import { renderSettingsPage } from './settings/settingsPage.js';
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json' });
   res.end(payload === undefined ? '' : JSON.stringify(payload));
+}
+
+function sendHtml(res, statusCode, html) {
+  res.writeHead(statusCode, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(html);
 }
 
 function sendMethodNotAllowed(res) {
@@ -42,12 +54,25 @@ function parseContactId(pathname) {
   return match ? Number(match[1]) : null;
 }
 
+function parseSettingKey(pathname) {
+  const match = pathname.match(/^\/api\/settings\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export async function router(req, res) {
   const method = req.method ?? 'GET';
   const url = new URL(req.url ?? '/', 'http://localhost');
   const { pathname } = url;
 
   try {
+    if (pathname === '/settings') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      return sendHtml(res, 200, renderSettingsPage());
+    }
+
     if (pathname === '/api/health') {
       if (method !== 'GET') {
         return sendMethodNotAllowed(res);
@@ -65,6 +90,14 @@ export async function router(req, res) {
         const body = await readJsonBody(req);
         const contact = create(body);
         return sendJson(res, 201, contact);
+      }
+
+      return sendMethodNotAllowed(res);
+    }
+
+    if (pathname === '/api/settings') {
+      if (method === 'GET') {
+        return sendJson(res, 200, getAllSettings());
       }
 
       return sendMethodNotAllowed(res);
@@ -98,6 +131,33 @@ export async function router(req, res) {
       return sendMethodNotAllowed(res);
     }
 
+    const settingKey = parseSettingKey(pathname);
+
+    if (settingKey !== null) {
+      if (method === 'GET') {
+        const setting = getByKey(settingKey);
+        return setting ? sendJson(res, 200, setting) : sendNotFound(res);
+      }
+
+      if (method === 'PUT') {
+        const body = await readJsonBody(req);
+        return sendJson(res, 200, upsert(settingKey, body.value));
+      }
+
+      if (method === 'DELETE') {
+        const deleted = deleteByKey(settingKey);
+
+        if (!deleted) {
+          return sendNotFound(res);
+        }
+
+        res.writeHead(204, { 'Content-Type': 'application/json' });
+        return res.end();
+      }
+
+      return sendMethodNotAllowed(res);
+    }
+
     return sendNotFound(res);
   } catch (error) {
     if (error instanceof Error && error.message === 'Invalid JSON body') {
@@ -105,6 +165,13 @@ export async function router(req, res) {
     }
 
     if (error instanceof Error && error.message === 'name is required') {
+      return sendJson(res, 400, { error: error.message });
+    }
+
+    if (
+      error instanceof Error
+      && (error.message === 'key is required' || error.message === 'value must be a string')
+    ) {
       return sendJson(res, 400, { error: error.message });
     }
 

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node src/server.js",
-    "test": "node --test src/**/*.test.js",
+    "test": "node --test src/*.test.js src/**/*.test.js",
     "typecheck": "echo 'no TypeScript configured'"
   },
   "dependencies": {
