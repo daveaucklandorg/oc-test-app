@@ -48,6 +48,14 @@ export async function router(req, res) {
   const { pathname } = url;
 
   try {
+    if (pathname === '/statusz') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      return sendJson(res, 200, { ok: true, service: 'oc-test-app' });
+    }
+
     if (pathname === '/api/health') {
       if (method !== 'GET') {
         return sendMethodNotAllowed(res);
