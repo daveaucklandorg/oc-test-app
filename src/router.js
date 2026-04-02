@@ -1,4 +1,9 @@
+import { createRequire } from 'node:module';
+
 import { create, deleteById, getAll, getById, update } from './db.js';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json' });
@@ -48,6 +53,21 @@ export async function router(req, res) {
   const { pathname } = url;
 
   try {
+    if (pathname === '/build-info') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      return sendJson(res, 200, {
+        version,
+        nodeVersion: process.version,
+        platform: process.platform,
+        arch: process.arch,
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     if (pathname === '/api/health') {
       if (method !== 'GET') {
         return sendMethodNotAllowed(res);
