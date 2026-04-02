@@ -38,6 +38,13 @@ test.after(async () => {
   fs.rmSync(dbPath, { force: true });
 });
 
+test('GET /statusz3 returns 200 with status ok', async () => {
+  const response = await fetch(`${baseUrl}/statusz3`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'application/json');
+  assert.deepEqual(await response.json(), { status: 'ok', endpoint: 'statusz3' });
+});
+
 test('API contact lifecycle', async () => {
   const healthResponse = await fetch(`${baseUrl}/api/health`);
   assert.equal(healthResponse.status, 200);

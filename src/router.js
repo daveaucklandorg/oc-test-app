@@ -56,6 +56,14 @@ export async function router(req, res) {
       return sendJson(res, 200, { status: 'ok' });
     }
 
+    if (pathname === '/statusz3') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      return sendJson(res, 200, { status: 'ok', endpoint: 'statusz3' });
+    }
+
     if (pathname === '/api/contacts') {
       if (method === 'GET') {
         return sendJson(res, 200, getAll());
