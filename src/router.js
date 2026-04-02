@@ -56,6 +56,14 @@ export async function router(req, res) {
       return sendJson(res, 200, { status: 'ok' });
     }
 
+    if (pathname === '/statusz2') {
+      if (method !== 'GET') {
+        return sendMethodNotAllowed(res);
+      }
+
+      return sendJson(res, 200, { ok: true, service: 'oc-test-app', probe: 2 });
+    }
+
     if (pathname === '/api/contacts') {
       if (method === 'GET') {
         return sendJson(res, 200, getAll());
